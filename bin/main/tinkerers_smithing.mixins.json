@@ -1,0 +1,30 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "folk.sisby.tinkerers_smithing.mixin",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "AnvilScreenHandlerMixin",
+    "EnchantmentHelperMixin",
+    "IngredientMixin",
+    "ItemStackMixin",
+    "MixinComponentPredicate",
+    "MixinMultiJsonDataLoader",
+  	"MixinRegistrySyncManager",
+    "MixinServerCommonNetworkHandler",
+    "MixinServerPlayNetworkHandler",
+    "MixinServerPlayNetworkHandlerEntityInteract",
+    "RecipeManagerMixin",
+    "SimpleResourceReloadMixin",
+    "SmithingScreenHandlerMixin"
+  ],
+  "client": [
+    "client.AnvilScreenMixin",
+    "client.InGameHudMixin",
+    "client.MixinClientPlayerInteractionManager",
+    "client.MixinPlayerEntity"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+	}
+}

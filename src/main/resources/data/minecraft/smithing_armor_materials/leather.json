@@ -1,0 +1,13 @@
+{
+	"inheritFromItem": [
+		"minecraft:leather_helmet"
+	],
+	"upgradesTo": [
+		"minecraft:iron",
+		"minecraft:chain",
+		"minecraft:gold"
+	],
+	"addItem": [
+		"minecraft:leather_horse_armor"
+	]
+}

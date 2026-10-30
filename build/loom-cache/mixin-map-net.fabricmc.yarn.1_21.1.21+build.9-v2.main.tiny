@@ -1,0 +1,7 @@
+v1	named	intermediary
+FIELD	folk/sisby/tinkerers_smithing/mixin/SmithingScreenHandlerMixin	Lnet/minecraft/recipe/RecipeEntry;	currentRecipe	field_25386
+FIELD	folk/sisby/tinkerers_smithing/mixin/AnvilScreenHandlerMixin	Lnet/minecraft/screen/Property;	levelCost	field_7770
+FIELD	folk/sisby/tinkerers_smithing/mixin/AnvilScreenHandlerMixin	I	repairItemUsage	field_7776
+FIELD	folk/sisby/tinkerers_smithing/mixin/client/InGameHudMixin	Lnet/minecraft/item/ItemStack;	currentStack	field_2031
+METHOD	folk/sisby/tinkerers_smithing/mixin/ItemStackMixin	()Lnet/minecraft/item/Item;	getItem	method_7909
+METHOD	folk/sisby/tinkerers_smithing/mixin/ItemStackMixin	()I	getDamage	method_7919
