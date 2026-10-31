@@ -49,6 +49,9 @@ public abstract class AnvilScreenHandlerMixin extends ItemCombinerMenu {
 
 	@ModifyExpressionValue(method = "createResult", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/item/Item;isValidRepairItem(Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;)Z"))
 	private boolean overrideRepairMaterials(boolean original) {
+		if (original) {
+			return true;
+		}
 		for (RecipeHolder<CraftingRecipe> recipe : this.player.level().getRecipeManager().getAllRecipesFor(RecipeType.CRAFTING)) {
 			if (recipe.value() instanceof ShapelessRepairRecipe srr && this.getSlot(AnvilMenu.INPUT_SLOT).getItem().is(srr.baseItem) && srr.addition.test(this.getSlot(AnvilMenu.ADDITIONAL_SLOT).getItem())) {
 				return true;
@@ -73,7 +76,7 @@ public abstract class AnvilScreenHandlerMixin extends ItemCombinerMenu {
 		return original == 0 && this.repairItemCountCost != 0 ? 1 : original;
 	}
 
-	@ModifyVariable(method = "createResult", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/DataSlot;set(I)V", ordinal = 5, shift = At.Shift.AFTER), ordinal = 0)
+	@ModifyVariable(method = "createResult", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/DataSlot;set(I)V", ordinal = 4, shift = At.Shift.AFTER), ordinal = 0)
 	private int allowFreeRepairs(int original) {
 		if (original == 0 && this.repairItemCountCost != 0) {
 			this.cost.set(0); // Remove RepairCost cost
