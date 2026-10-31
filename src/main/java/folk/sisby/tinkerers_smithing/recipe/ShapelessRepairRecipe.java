@@ -4,23 +4,22 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import folk.sisby.tinkerers_smithing.TinkerersSmithing;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.Items;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.recipe.RecipeEntry;
-import net.minecraft.recipe.RecipeSerializer;
-import net.minecraft.recipe.ShapelessRecipe;
-import net.minecraft.recipe.book.CraftingRecipeCategory;
-import net.minecraft.recipe.input.CraftingRecipeInput;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.RegistryWrapper;
-import net.minecraft.util.collection.DefaultedList;
-import net.minecraft.world.World;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.ShapelessRecipe;
+import net.minecraft.world.item.crafting.CraftingBookCategory;
+import net.minecraft.world.item.crafting.CraftingInput;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.core.HolderLookup;
+import net.minecraft.core.NonNullList;
 import org.apache.commons.lang3.ArrayUtils;
 import org.jetbrains.annotations.Nullable;
 
@@ -35,90 +34,90 @@ public class ShapelessRepairRecipe extends ShapelessRecipe implements ServerReci
 	public final int additionCount;
 
 	public ShapelessRepairRecipe(Item baseItem, Ingredient addition, int additionCount) {
-		super("", CraftingRecipeCategory.EQUIPMENT, getPreviewResult(baseItem), assembleIngredients(baseItem, addition, additionCount));
+		super("", CraftingBookCategory.EQUIPMENT, getPreviewResult(baseItem), assembleIngredients(baseItem, addition, additionCount));
 		this.baseItem = baseItem;
 		this.addition = addition;
 		this.additionCount = additionCount;
 	}
 
-	public RecipeEntry<ShapelessRepairRecipe> toEntry() {
-		return new RecipeEntry<>(repairRecipeId(baseItem, addition), this);
+	public RecipeHolder<ShapelessRepairRecipe> toEntry() {
+		return new RecipeHolder<>(repairRecipeId(baseItem, addition), this);
 	}
 
 	private static ItemStack getPreviewResult(Item baseItem) {
-		ItemStack stack = baseItem.getDefaultStack().copy();
-		stack.setDamage(1); // Helps signal to vanilla players that the recipe is durability related.
+		ItemStack stack = baseItem.getDefaultInstance().copy();
+		stack.setDamageValue(1); // Helps signal to vanilla players that the recipe is durability related.
 		return stack;
 	}
 
-	private static DefaultedList<Ingredient> assembleIngredients(Item item, Ingredient addition, int additionCount) {
-		DefaultedList<Ingredient> ingredients = DefaultedList.of();
-		Ingredient additionWithAir = Ingredient.ofEntries(Arrays.stream(ArrayUtils.addAll(addition.entries, Ingredient.ofItems(Items.AIR).entries)));
-		ingredients.add(Ingredient.ofItems(item));
+	private static NonNullList<Ingredient> assembleIngredients(Item item, Ingredient addition, int additionCount) {
+		NonNullList<Ingredient> ingredients = NonNullList.create();
+		Ingredient additionWithAir = Ingredient.fromValues(Arrays.stream(ArrayUtils.addAll(addition.values, Ingredient.of(Items.AIR).values)));
+		ingredients.add(Ingredient.of(item));
 		for (int i = 0; i < additionCount; i++) {
 			ingredients.add(i > 0 ? additionWithAir : addition);
 		}
 		return ingredients;
 	}
 
-	private ItemStack findBase(CraftingRecipeInput recipeInput) {
-		List<ItemStack> bases = recipeInput.getStacks().stream().filter(s -> s.isOf(baseItem)).toList();
-		return bases.size() == 1 && !bases.get(0).hasEnchantments() && bases.get(0).isDamaged() ? bases.get(0) : null;
+	private ItemStack findBase(CraftingInput recipeInput) {
+		List<ItemStack> bases = recipeInput.items().stream().filter(s -> s.is(baseItem.asItem())).toList();
+		return bases.size() == 1 && !bases.get(0).isEnchanted() && bases.get(0).isDamaged() ? bases.get(0) : null;
 	}
 
 	@Override
-	public boolean matches(CraftingRecipeInput recipeInput, World world) {
+	public boolean matches(CraftingInput recipeInput, net.minecraft.world.level.Level world) {
 		ItemStack base = findBase(recipeInput);
-		long units = recipeInput.getStacks().stream().filter(addition).count();
-		long empty = recipeInput.getStacks().stream().filter(ItemStack::isEmpty).count();
-		if (base == null || units <= 0 || units > additionCount || empty != (recipeInput.getSize() - units - 1)) return false;
+		long units = recipeInput.items().stream().filter(addition).count();
+		long empty = recipeInput.items().stream().filter(ItemStack::isEmpty).count();
+		if (base == null || units <= 0 || units > additionCount || empty != (recipeInput.size() - units - 1)) return false;
 
-		return base.getDamage() - ((int) Math.ceil((base.getMaxDamage() * (units - 1)) / (double) additionCount)) > 0;
+		return base.getDamageValue() - ((int) Math.ceil((base.getMaxDamage() * (units - 1)) / (double) additionCount)) > 0;
 	}
 
 	@Override
-	public ItemStack craft(CraftingRecipeInput recipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
+	public ItemStack assemble(CraftingInput recipeInput, HolderLookup.Provider registries) {
 		ItemStack base = findBase(recipeInput);
-		long units = recipeInput.getStacks().stream().filter(addition).count();
+		long units = recipeInput.items().stream().filter(addition).count();
 		if (base == null || units <= 0 || units > additionCount) return ItemStack.EMPTY;
 
-		ItemStack output = super.craft(recipeInput, wrapperLookup);
-		output.applyChanges(base.getComponentChanges());
-		output.setDamage(Math.max(0, base.getDamage() - ((int) Math.ceil((base.getMaxDamage() * units) / (double) additionCount))));
+		ItemStack output = super.assemble(recipeInput, registries);
+		output.applyComponents(base.getComponentsPatch());
+		output.setDamageValue(Math.max(0, base.getDamageValue() - ((int) Math.ceil((base.getMaxDamage() * units) / (double) additionCount))));
 		return output;
 	}
 
 	@Override
-	public boolean fits(int width, int height) {
+	public boolean canCraftInDimensions(int width, int height) {
 		return width * height >= 2;
 	}
 
 	@Override
-	public boolean isIgnoredInRecipeBook() {
+	public boolean isSpecial() {
 		return true;
 	}
 
 	@Override
 	public RecipeSerializer<?> getSerializer() {
-		return TinkerersSmithing.SHAPELESS_REPAIR_SERIALIZER;
+		return TinkerersSmithing.SHAPELESS_REPAIR_SERIALIZER.get();
 	}
 
 	@Override
 	public @Nullable RecipeSerializer<ShapelessRecipe> getFallbackSerializer() {
-		return RecipeSerializer.SHAPELESS;
+		return RecipeSerializer.SHAPELESS_RECIPE;
 	}
 
 	public static class Serializer implements RecipeSerializer<ShapelessRepairRecipe> {
 		MapCodec<ShapelessRepairRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-			Registries.ITEM.getCodec().fieldOf("baseItem").forGetter(r -> r.baseItem),
-			Ingredient.DISALLOW_EMPTY_CODEC.fieldOf("addition").forGetter(r -> r.addition),
+			BuiltInRegistries.ITEM.byNameCodec().fieldOf("baseItem").forGetter(r -> r.baseItem),
+			Ingredient.CODEC_NONEMPTY.fieldOf("addition").forGetter(r -> r.addition),
 			Codec.INT.fieldOf("additionCount").forGetter(r -> r.additionCount)
 		).apply(instance, ShapelessRepairRecipe::new));
 
-		PacketCodec<RegistryByteBuf, ShapelessRepairRecipe> PACKET_CODEC = PacketCodec.tuple(
-			PacketCodecs.registryValue(RegistryKeys.ITEM), r -> r.baseItem,
-			Ingredient.PACKET_CODEC, r -> r.addition,
-			PacketCodecs.VAR_INT, r -> r.additionCount,
+		StreamCodec<RegistryFriendlyByteBuf, ShapelessRepairRecipe> PACKET_CODEC = StreamCodec.composite(
+			ByteBufCodecs.registry(Registries.ITEM), r -> r.baseItem,
+			Ingredient.CONTENTS_STREAM_CODEC, r -> r.addition,
+			ByteBufCodecs.VAR_INT, r -> r.additionCount,
 			ShapelessRepairRecipe::new
 		);
 
@@ -128,7 +127,7 @@ public class ShapelessRepairRecipe extends ShapelessRecipe implements ServerReci
 		}
 
 		@Override
-		public PacketCodec<RegistryByteBuf, ShapelessRepairRecipe> packetCodec() {
+		public StreamCodec<RegistryFriendlyByteBuf, ShapelessRepairRecipe> streamCodec() {
 			return PACKET_CODEC;
 		}
 	}

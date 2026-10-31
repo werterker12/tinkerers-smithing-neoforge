@@ -1,0 +1,28 @@
+{
+	"tag.c.horse_armor": "Конская броня",
+	"tag.c.wolf_armor": "Волчья броня",
+	"container.repair.work": "Стоимость работы: %d",
+	"item.tinkerers_smithing.broken": "Сломано",
+	"tag.tinkerers_smithing.dework_ingredients": "Материалы для сброса наценки работы",
+	"tag.tinkerers_smithing.sacrifice.netherite_1": "Незеритовое снаряжение со стоимостью 1",
+	"tag.tinkerers_smithing.sacrifice.netherite_2": "Незеритовое снаряжение со стоимостью 2",
+	"tag.tinkerers_smithing.sacrifice.netherite_3": "Незеритовое снаряжение со стоимостью 3",
+	"tag.tinkerers_smithing.sacrifice.netherite_4": "Незеритовое снаряжение со стоимостью 4",
+	"tag.tinkerers_smithing.sacrifice.netherite_5": "Незеритовое снаряжение со стоимостью 5",
+	"tag.tinkerers_smithing.sacrifice.netherite_6": "Незеритовое снаряжение со стоимостью 6",
+	"tag.tinkerers_smithing.sacrifice.netherite_7": "Незеритовое снаряжение со стоимостью 7",
+	"tag.tinkerers_smithing.sacrifice.netherite_8": "Незеритовое снаряжение со стоимостью 8",
+	"tag.tinkerers_smithing.sacrifice.netherite_9": "Незеритовое снаряжение со стоимостью 9",
+	"tag.tinkerers_smithing.sacrifice.netherite_1_plus": "Незеритовое снаряжение",
+	"tag.tinkerers_smithing.sacrifice.netherite_2_plus": "Незеритовое снаряжение со стоимостью 2+",
+	"tag.tinkerers_smithing.sacrifice.netherite_3_plus": "Незеритовое снаряжение со стоимостью 3+",
+	"tag.tinkerers_smithing.sacrifice.netherite_4_plus": "Незеритовое снаряжение со стоимостью 4+",
+	"tag.tinkerers_smithing.sacrifice.netherite_5_plus": "Незеритовое снаряжение со стоимостью 5+",
+	"tag.tinkerers_smithing.sacrifice.netherite_6_plus": "Незеритовое снаряжение со стоимостью 6+",
+	"tag.tinkerers_smithing.sacrifice.netherite_7_plus": "Незеритовое снаряжение со стоимостью 7+",
+	"tag.tinkerers_smithing.sacrifice.netherite_8_plus": "Незеритовое снаряжение со стоимостью 8+",
+	"tag.tinkerers_smithing.sacrifice.netherite_9_plus": "Незеритовое снаряжение со стоимостью 9+",
+	"jei.tinkerers_smithing.dework.desc": "Можно объединить с инструментом или бронёй на наковальне, чтобы снизить или сбросить штраф за предыдущую работу (наценку починки).",
+	"jei.tinkerers_smithing.repair.desc": "Инструменты и броню можно ремонтировать без формы в любом верстаке без штрафа наковальни."
+}
+

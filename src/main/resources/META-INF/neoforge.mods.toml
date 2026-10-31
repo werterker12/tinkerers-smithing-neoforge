@@ -1,44 +1,43 @@
-modLoader = "javafml"
-loaderVersion = "[4,)"
-license = "${license}"
-issueTrackerURL = "${issues}"
+modLoader="javafml"
+loaderVersion="[4,)"
+license="${license}"
+issueTrackerURL="${issues}"
 
 [[mods]]
-modId = "${modId}"
-version = "${version}"
-displayName = "${modName}"
-description = '''${modDescription}'''
-authors = "${members}"
-displayURL = "${homepage}"
-logoFile = "assets/${modId}/icon.png"
+modId="${modId}"
+version="${version}"
+displayName="${modName}"
+displayURL="${homepage}"
+logoFile="assets/tinkerers_smithing/icon.png"
+authors="${authors}"
+credits="${credits}"
+description='''${modDescription}'''
 
-[properties]
-"connector:placeholder" = true
+[[mixins]]
+config="tinkerers_smithing.mixins.json"
 
-[[dependencies.${ modId }]]
-modId = "connector"
-type = "required"
-versionRange = "*"
-ordering = "NONE"
-side = "BOTH"
+[[dependencies.${modId}]]
+    modId="neoforge"
+    type="required"
+    versionRange="[${neoForgeVersion},)"
+    ordering="NONE"
+    side="BOTH"
 
-[[dependencies.${ modId }]]
-modId = "neoforge"
-type = "required"
-versionRange = "*"
-ordering = "NONE"
-side = "BOTH"
+[[dependencies.${modId}]]
+    modId="minecraft"
+    type="required"
+    versionRange="[${mc}]"
+    ordering="NONE"
+    side="BOTH"
 
-[[dependencies.${ modId }]]
-modId = "minecraft"
-type = "required"
-versionRange = "[${mc},)"
-ordering = "NONE"
-side = "BOTH"
+[[dependencies.${modId}]]
+    modId="tinkerers_smithing"
+    type="incompatible"
+    reason="This mod is a standalone NeoForge fork of Tinkerer's Smithing and is incompatible with the original."
 
-[[dependencies.${ modId }]]
-modId = "fabric_api"
-type = "required"
-versionRange = "[${fapi},)"
-ordering = "NONE"
-side = "BOTH"
+[[dependencies.${modId}]]
+    modId="jei"
+    type="optional"
+    versionRange="[19.0.0,)"
+    ordering="AFTER"
+    side="CLIENT"

@@ -5,13 +5,15 @@ import com.google.gson.Gson;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParseException;
 import com.mojang.logging.LogUtils;
-import net.minecraft.resource.Resource;
-import net.minecraft.resource.ResourceManager;
-import net.minecraft.resource.SinglePreparationResourceReloader;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.JsonHelper;
-import net.minecraft.util.Pair;
-import net.minecraft.util.profiler.Profiler;
+import com.mojang.serialization.JsonOps;
+import net.neoforged.neoforge.common.conditions.ICondition;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.Resource;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
+import net.minecraft.util.GsonHelper;
+import net.minecraft.util.profiling.ProfilerFiller;
+import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 
 import java.io.IOException;
@@ -21,7 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
-public abstract class MultiJsonDataLoader extends SinglePreparationResourceReloader<Map<Identifier, Collection<Pair<JsonElement, String>>>> {
+public abstract class MultiJsonDataLoader extends SimplePreparableReloadListener<Map<ResourceLocation, Collection<Pair<JsonElement, String>>>> {
 	private static final Logger LOGGER = LogUtils.getLogger();
 	private static final String FILE_SUFFIX = ".json";
 	private final Gson gson;
@@ -33,18 +35,21 @@ public abstract class MultiJsonDataLoader extends SinglePreparationResourceReloa
 	}
 
 	@Override
-	protected Map<Identifier, Collection<Pair<JsonElement, String>>> prepare(ResourceManager manager, Profiler profiler) {
-		Map<Identifier, Collection<Pair<JsonElement, String>>> outMap = Maps.newHashMap();
+	protected Map<ResourceLocation, Collection<Pair<JsonElement, String>>> prepare(ResourceManager manager, ProfilerFiller profiler) {
+		Map<ResourceLocation, Collection<Pair<JsonElement, String>>> outMap = Maps.newHashMap();
 
-		for (Map.Entry<Identifier, List<Resource>> entry : manager.findAllResources(this.dataType, id -> id.getPath().endsWith(".json")).entrySet()) {
-			Identifier fileId = entry.getKey();
-			Identifier id = Identifier.of(fileId.getNamespace(), fileId.getPath().substring(dataType.length() + 1, fileId.getPath().length() - FILE_SUFFIX.length()));
+		for (Map.Entry<ResourceLocation, List<Resource>> entry : manager.listResourceStacks(this.dataType, id -> id.getPath().endsWith(".json")).entrySet()) {
+			ResourceLocation fileId = entry.getKey();
+			ResourceLocation id = ResourceLocation.fromNamespaceAndPath(fileId.getNamespace(), fileId.getPath().substring(dataType.length() + 1, fileId.getPath().length() - FILE_SUFFIX.length()));
 
 			for (Resource resource : entry.getValue()) {
 				try {
-					try (Reader reader = resource.getReader()) {
-						JsonElement jsonContents = JsonHelper.deserialize(this.gson, reader, JsonElement.class);
-						outMap.computeIfAbsent(id, k -> new ArrayList<>()).add(new Pair<>(jsonContents, resource.getPack().getId()));
+					try (Reader reader = resource.openAsReader()) {
+						JsonElement jsonContents = GsonHelper.fromJson(this.gson, reader, JsonElement.class);
+						if (jsonContents.isJsonObject() && !ICondition.conditionsMatched(JsonOps.INSTANCE, jsonContents)) {
+							continue;
+						}
+						outMap.computeIfAbsent(id, k -> new ArrayList<>()).add(Pair.of(jsonContents, resource.sourcePackId()));
 					}
 				} catch (IllegalArgumentException | IOException | JsonParseException e) {
 					LOGGER.error("Couldn't parse data file {} from {}", id, fileId, e);

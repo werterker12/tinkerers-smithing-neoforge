@@ -1,14 +1,21 @@
 pluginManagement {
-	repositories {
-		maven { url 'https://maven.fabricmc.net/' }
-		gradlePluginPortal()
-	}
+    repositories {
+        gradlePluginPortal()
+        mavenCentral()
+        maven {
+            name = "NeoForged"
+            url = "https://maven.neoforged.net/releases"
+        }
+    }
 }
 
+
 dependencyResolutionManagement {
-	versionCatalogs {
-		create("libs") {
-			from(files("libs.versions.toml"))
-		}
-	}
+    versionCatalogs {
+        create("libs") {
+            from(files("libs.versions.toml"))
+        }
+    }
 }
+
+rootProject.name = "tinkerers-smithing-neoforge"

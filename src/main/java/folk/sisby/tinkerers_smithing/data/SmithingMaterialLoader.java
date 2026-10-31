@@ -6,13 +6,13 @@ import com.google.gson.JsonObject;
 import com.mojang.serialization.JsonOps;
 import folk.sisby.tinkerers_smithing.TinkerersSmithing;
 import folk.sisby.tinkerers_smithing.TinkerersSmithingMaterial;
-import net.minecraft.item.Item;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.registry.Registries;
-import net.minecraft.resource.ResourceManager;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Pair;
-import net.minecraft.util.profiler.Profiler;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.util.profiling.ProfilerFiller;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -37,41 +37,41 @@ public abstract class SmithingMaterialLoader extends MultiJsonDataLoader {
 		this.type = type;
 	}
 
-	public static Item getOrWarnItem(Identifier id, Identifier resourceId) {
-		Item item = Registries.ITEM.getOrEmpty(id).orElse(null);
+	public static Item getOrWarnItem(ResourceLocation id, ResourceLocation resourceId) {
+		Item item = BuiltInRegistries.ITEM.getOptional(id).orElse(null);
 		if (item == null) {
 			TinkerersSmithing.LOGGER.warn("[Tinkerer's Smithing] Couldn't load item {} from {} as it wasn't registered!", id, resourceId);
 		}
 		return item;
 	}
 
-	public static void addOrWarnItem(Collection<Item> collection, Identifier id, Identifier resourceId) {
+	public static void addOrWarnItem(Collection<Item> collection, ResourceLocation id, ResourceLocation resourceId) {
 		Item item = getOrWarnItem(id, resourceId);
 		if (item != null) collection.add(item);
 	}
 
-	public static void removeOrWarnItem(Collection<Item> collection, Identifier id, Identifier resourceId) {
+	public static void removeOrWarnItem(Collection<Item> collection, ResourceLocation id, ResourceLocation resourceId) {
 		Item item = getOrWarnItem(id, resourceId);
 		if (item != null) collection.remove(item);
 	}
 
 	@Override
-	protected void apply(Map<Identifier, Collection<Pair<JsonElement, String>>> prepared, ResourceManager manager, Profiler profiler) {
+	protected void apply(Map<ResourceLocation, Collection<Pair<JsonElement, String>>> prepared, ResourceManager manager, ProfilerFiller profiler) {
 		TinkerersSmithing.LOGGER.info("[Tinkerer's Smithing] Loading Materials!");
-		Map<Identifier, TinkerersSmithingMaterial> outputMap = this.getOutputMap();
+		Map<ResourceLocation, TinkerersSmithingMaterial> outputMap = this.getOutputMap();
 		outputMap.clear();
-		Map<Identifier, List<Identifier>> upgradeFromMap = new HashMap<>();
+		Map<ResourceLocation, List<ResourceLocation>> upgradeFromMap = new HashMap<>();
 		prepared.forEach((id, jsons) -> {
-			Set<Identifier> upgradesTo = new HashSet<>();
+			Set<ResourceLocation> upgradesTo = new HashSet<>();
 			List<Ingredient> repairMaterials = new ArrayList<>();
 			Set<Item> items = new HashSet<>();
-			Identifier sacrificesVia = null;
+			ResourceLocation sacrificesVia = null;
 
 			for (Pair<JsonElement, String> entry : jsons) {
 				JsonObject baseObject = entry.getLeft().getAsJsonObject();
 				if (baseObject.has(KEY_INHERIT_FROM_ITEM)) {
 					baseObject.get(KEY_INHERIT_FROM_ITEM).getAsJsonArray().forEach(inheritElement -> {
-						Identifier inheritItemId = Identifier.tryParse(inheritElement.getAsString());
+						ResourceLocation inheritItemId = ResourceLocation.tryParse(inheritElement.getAsString());
 						if (inheritItemId != null) {
 							Item inheritItem = getOrWarnItem(inheritItemId, id);
 							if (inheritItem != null) {
@@ -79,7 +79,7 @@ public abstract class SmithingMaterialLoader extends MultiJsonDataLoader {
 								if (repairIngredient != null) {
 									repairMaterials.add(repairIngredient);
 								}
-								Registries.ITEM.forEach(matchingItem -> {
+								BuiltInRegistries.ITEM.forEach(matchingItem -> {
 									if (matchingMaterials(inheritItem, matchingItem)) items.add(matchingItem);
 								});
 							}
@@ -87,22 +87,22 @@ public abstract class SmithingMaterialLoader extends MultiJsonDataLoader {
 					});
 				}
 				if (baseObject.has(KEY_REPAIR_MATERIALS)) {
-					baseObject.get(KEY_REPAIR_MATERIALS).getAsJsonArray().forEach(jsonIngredient -> repairMaterials.add(Ingredient.ALLOW_EMPTY_CODEC.decode(JsonOps.INSTANCE, jsonIngredient).getOrThrow().getFirst()));
+					baseObject.get(KEY_REPAIR_MATERIALS).getAsJsonArray().forEach(jsonIngredient -> repairMaterials.add(Ingredient.CODEC.decode(JsonOps.INSTANCE, jsonIngredient).getOrThrow().getFirst()));
 				}
 				if (baseObject.has(KEY_ADD_ITEM)) {
-					baseObject.get(KEY_ADD_ITEM).getAsJsonArray().forEach(jsonItemId -> addOrWarnItem(items, Identifier.of(jsonItemId.getAsString()), id));
+					baseObject.get(KEY_ADD_ITEM).getAsJsonArray().forEach(jsonItemId -> addOrWarnItem(items, ResourceLocation.parse(jsonItemId.getAsString()), id));
 				}
 				if (baseObject.has(KEY_REMOVE_ITEM)) {
-					baseObject.get(KEY_REMOVE_ITEM).getAsJsonArray().forEach(jsonItemId -> removeOrWarnItem(items, Identifier.of(jsonItemId.getAsString()), id));
+					baseObject.get(KEY_REMOVE_ITEM).getAsJsonArray().forEach(jsonItemId -> removeOrWarnItem(items, ResourceLocation.parse(jsonItemId.getAsString()), id));
 				}
 				if (baseObject.has(KEY_UPGRADES_FROM)) {
-					baseObject.get(KEY_UPGRADES_FROM).getAsJsonArray().forEach(jsonMaterialId -> upgradeFromMap.computeIfAbsent(Identifier.of(jsonMaterialId.getAsString()), k -> new ArrayList<>()).add(id));
+					baseObject.get(KEY_UPGRADES_FROM).getAsJsonArray().forEach(jsonMaterialId -> upgradeFromMap.computeIfAbsent(ResourceLocation.parse(jsonMaterialId.getAsString()), k -> new ArrayList<>()).add(id));
 				}
 				if (baseObject.has(KEY_UPGRADES_TO)) {
-					baseObject.get(KEY_UPGRADES_TO).getAsJsonArray().forEach(jsonMaterialId -> upgradesTo.add(Identifier.of(jsonMaterialId.getAsString())));
+					baseObject.get(KEY_UPGRADES_TO).getAsJsonArray().forEach(jsonMaterialId -> upgradesTo.add(ResourceLocation.parse(jsonMaterialId.getAsString())));
 				}
 				if (baseObject.has(KEY_SACRIFICE_VIA)) {
-					sacrificesVia = Identifier.of(baseObject.get(KEY_SACRIFICE_VIA).getAsString());
+					sacrificesVia = ResourceLocation.parse(baseObject.get(KEY_SACRIFICE_VIA).getAsString());
 				}
 			}
 
@@ -131,5 +131,5 @@ public abstract class SmithingMaterialLoader extends MultiJsonDataLoader {
 
 	public abstract boolean matchingMaterials(Item item1, Item item2);
 
-	public abstract Map<Identifier, TinkerersSmithingMaterial> getOutputMap();
+	public abstract Map<ResourceLocation, TinkerersSmithingMaterial> getOutputMap();
 }

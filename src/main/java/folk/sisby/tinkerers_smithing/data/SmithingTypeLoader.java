@@ -5,15 +5,15 @@ import com.google.gson.JsonElement;
 import com.mojang.serialization.JsonOps;
 import folk.sisby.tinkerers_smithing.TinkerersSmithing;
 import folk.sisby.tinkerers_smithing.TinkerersSmithingLoader;
-import net.minecraft.item.Item;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.tag.TagFile;
-import net.minecraft.registry.tag.TagGroupLoader;
-import net.minecraft.resource.ResourceManager;
-import net.minecraft.util.Identifier;
-import net.minecraft.util.Pair;
-import net.minecraft.util.profiler.Profiler;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.ResourceManager;
+import net.minecraft.tags.TagFile;
+import net.minecraft.tags.TagLoader;
+import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.world.item.Item;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,8 +24,8 @@ import java.util.stream.Collectors;
 
 public class SmithingTypeLoader extends MultiJsonDataLoader {
 	public static final SmithingTypeLoader INSTANCE = new SmithingTypeLoader(new Gson());
-	public static final Identifier ID = Identifier.of(TinkerersSmithing.ID, "smithing_type_loader");
-	public static final TagGroupLoader<Item> ITEM_TAG_LOADER = new TagGroupLoader<>(Registries.ITEM::getOrEmpty, "tags/item");
+	public static final ResourceLocation ID = ResourceLocation.fromNamespaceAndPath(TinkerersSmithing.ID, "smithing_type_loader");
+	public static final TagLoader<Item> ITEM_TAG_LOADER = new TagLoader<>(BuiltInRegistries.ITEM::getOptional, "tags/item");
 	public static final String AVOIDANCE_PREFIX = "tinkerers_smithing_types/";
 
 	public SmithingTypeLoader(Gson gson) {
@@ -38,30 +38,30 @@ public class SmithingTypeLoader extends MultiJsonDataLoader {
 	}
 
 	@Override
-	protected void apply(Map<Identifier, Collection<Pair<JsonElement, String>>> prepared, ResourceManager manager, Profiler profiler) {
+	protected void apply(Map<ResourceLocation, Collection<Pair<JsonElement, String>>> prepared, ResourceManager manager, ProfilerFiller profiler) {
 		TinkerersSmithing.LOGGER.info("[Tinkerer's Smithing] Loading Types!");
 		TinkerersSmithingLoader.INSTANCE.SMITHING_TYPES.clear();
-		Map<Identifier, List<TagGroupLoader.TrackedEntry>> typeTags = new HashMap<>();
+		Map<ResourceLocation, List<TagLoader.EntryWithSource>> typeTags = new HashMap<>();
 		prepared.forEach((id, jsons) -> {
-			Identifier collisionAvoidingID = Identifier.of(id.getNamespace(), AVOIDANCE_PREFIX + id.getPath());
+			ResourceLocation collisionAvoidingID = ResourceLocation.fromNamespaceAndPath(id.getNamespace(), AVOIDANCE_PREFIX + id.getPath());
 			jsons.forEach(jsonEntry -> {
-				List<TagGroupLoader.TrackedEntry> list = typeTags.computeIfAbsent(collisionAvoidingID, k -> new ArrayList<>());
+				List<TagLoader.EntryWithSource> list = typeTags.computeIfAbsent(collisionAvoidingID, k -> new ArrayList<>());
 				TagFile tagFile = TagFile.CODEC.decode(JsonOps.INSTANCE, jsonEntry.getLeft()).getOrThrow().getFirst();
 				if (tagFile.replace()) {
 					list.clear();
 				}
-				tagFile.entries().forEach(entry -> list.add(new TagGroupLoader.TrackedEntry(entry, jsonEntry.getRight())));
+				tagFile.entries().forEach(entry -> list.add(new TagLoader.EntryWithSource(entry, jsonEntry.getRight())));
 			});
 		});
 
-		Map<Identifier, List<TagGroupLoader.TrackedEntry>> itemTags = ITEM_TAG_LOADER.loadTags(manager);
-		Map<Identifier, List<TagGroupLoader.TrackedEntry>> allTags = new HashMap<>();
+		Map<ResourceLocation, List<TagLoader.EntryWithSource>> itemTags = ITEM_TAG_LOADER.load(manager);
+		Map<ResourceLocation, List<TagLoader.EntryWithSource>> allTags = new HashMap<>();
 		allTags.putAll(itemTags);
 		allTags.putAll(typeTags);
-		Map<Identifier, Collection<Item>> tags = ITEM_TAG_LOADER.buildGroup(allTags);
+		Map<ResourceLocation, Collection<Item>> tags = ITEM_TAG_LOADER.build(allTags);
 		tags.entrySet().removeIf(e -> !typeTags.containsKey(e.getKey()));
 		// Strip collision avoiding ID
-		tags = tags.entrySet().stream().collect(Collectors.toMap(e -> Identifier.of(e.getKey().getNamespace(), StringUtils.removeStart(e.getKey().getPath(), AVOIDANCE_PREFIX)), Map.Entry::getValue));
+		tags = tags.entrySet().stream().collect(Collectors.toMap(e -> ResourceLocation.fromNamespaceAndPath(e.getKey().getNamespace(), StringUtils.removeStart(e.getKey().getPath(), AVOIDANCE_PREFIX)), Map.Entry::getValue));
 		TinkerersSmithingLoader.INSTANCE.SMITHING_TYPES.putAll(tags);
 		TinkerersSmithing.LOGGER.info("[Tinkerer's Smithing] Reloaded smithing types");
 	}

@@ -4,19 +4,19 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import folk.sisby.tinkerers_smithing.TinkerersSmithing;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.codec.PacketCodec;
-import net.minecraft.network.codec.PacketCodecs;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.recipe.RecipeEntry;
-import net.minecraft.recipe.RecipeSerializer;
-import net.minecraft.recipe.SmithingTransformRecipe;
-import net.minecraft.recipe.input.SmithingRecipeInput;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.RegistryWrapper;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.codec.StreamCodec;
+import net.minecraft.network.codec.ByteBufCodecs;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.SmithingTransformRecipe;
+import net.minecraft.world.item.crafting.SmithingRecipeInput;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.core.HolderLookup;
 import org.jetbrains.annotations.Nullable;
 
 import static folk.sisby.tinkerers_smithing.TinkerersSmithingLoader.appendId;
@@ -29,46 +29,46 @@ public class SacrificeUpgradeRecipe extends SmithingTransformRecipe implements S
 	public final int resultUnits;
 
 	public SacrificeUpgradeRecipe(Item baseItem, Ingredient addition, int additionUnits, Item resultItem, int resultUnits) {
-		super(Ingredient.empty(), Ingredient.ofItems(baseItem), addition, getPreviewResult(resultItem, additionUnits, resultUnits));
+		super(Ingredient.of(), Ingredient.of(baseItem), addition, getPreviewResult(resultItem, additionUnits, resultUnits));
 		this.baseItem = baseItem;
 		this.additionUnits = additionUnits;
 		this.resultItem = resultItem;
 		this.resultUnits = resultUnits;
 	}
 
-	public RecipeEntry<SacrificeUpgradeRecipe> toEntry() {
-		return new RecipeEntry<>(appendId(recipeId("sacrifice", resultItem, baseItem), String.valueOf(additionUnits)), this);
+	public RecipeHolder<SacrificeUpgradeRecipe> toEntry() {
+		return new RecipeHolder<>(appendId(recipeId("sacrifice", resultItem, baseItem), String.valueOf(additionUnits)), this);
 	}
 
 	private static ItemStack getPreviewResult(Item resultItem, int additionUnits, int resultUnits) {
-		ItemStack stack = resultItem.getDefaultStack().copy();
-		stack.setDamage(resultDamage(resultItem, additionUnits, resultUnits, 0, 1));
+		ItemStack stack = resultItem.getDefaultInstance().copy();
+		stack.setDamageValue(resultDamage(resultItem, additionUnits, resultUnits, 0, 1));
 		return stack;
 	}
 
 	public static int resultDamage(Item resultItem, int additionUnits, int resultUnits, int additionDamage, int additionMaxDamage) {
-		if (resultItem.getDefaultStack().getMaxDamage() == 0) return additionUnits * (additionDamage / (double) additionMaxDamage) >= resultUnits ? 0 : 1;
-		return (int) Math.ceil(resultItem.getDefaultStack().getMaxDamage() - ((additionMaxDamage - additionDamage) * ((double) additionUnits * resultItem.getDefaultStack().getMaxDamage()) / ((double) additionMaxDamage * resultUnits)));
+		if (resultItem.getDefaultInstance().getMaxDamage() == 0) return additionUnits * (additionDamage / (double) additionMaxDamage) >= resultUnits ? 0 : 1;
+		return (int) Math.ceil(resultItem.getDefaultInstance().getMaxDamage() - ((additionMaxDamage - additionDamage) * ((double) additionUnits * resultItem.getDefaultInstance().getMaxDamage()) / ((double) additionMaxDamage * resultUnits)));
 	}
 
 	@Override
-	public ItemStack craft(SmithingRecipeInput recipeInput, RegistryWrapper.WrapperLookup wrapperLookup) {
-		ItemStack output = super.craft(recipeInput, wrapperLookup);
+	public ItemStack assemble(SmithingRecipeInput recipeInput, HolderLookup.Provider registries) {
+		ItemStack output = super.assemble(recipeInput, registries);
 		ItemStack addition = recipeInput.addition();
-		int damage = resultDamage(output.getItem(), additionUnits, resultUnits, addition.getDamage(), addition.getMaxDamage());
+		int damage = resultDamage(output.getItem(), additionUnits, resultUnits, addition.getDamageValue(), addition.getMaxDamage());
 		if (damage > output.getMaxDamage()) return ItemStack.EMPTY;
-		output.setDamage(damage);
+		output.setDamageValue(damage);
 		return output;
 	}
 
 	@Override
-	public boolean isIgnoredInRecipeBook() {
+	public boolean isSpecial() {
 		return true;
 	}
 
 	@Override
 	public RecipeSerializer<?> getSerializer() {
-		return TinkerersSmithing.SACRIFICE_UPGRADE_SERIALIZER;
+		return TinkerersSmithing.SACRIFICE_UPGRADE_SERIALIZER.get();
 	}
 
 	@Override
@@ -78,19 +78,19 @@ public class SacrificeUpgradeRecipe extends SmithingTransformRecipe implements S
 
 	public static class Serializer implements RecipeSerializer<SacrificeUpgradeRecipe> {
 		MapCodec<SacrificeUpgradeRecipe> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-			Registries.ITEM.getCodec().fieldOf("baseItem").forGetter(r -> r.baseItem),
-			Ingredient.DISALLOW_EMPTY_CODEC.fieldOf("addition").forGetter(r -> r.addition),
+			BuiltInRegistries.ITEM.byNameCodec().fieldOf("baseItem").forGetter(r -> r.baseItem),
+			Ingredient.CODEC_NONEMPTY.fieldOf("addition").forGetter(r -> r.addition),
 			Codec.INT.fieldOf("additionUnits").forGetter(r -> r.additionUnits),
-			Registries.ITEM.getCodec().fieldOf("resultItem").forGetter(r -> r.resultItem),
+			BuiltInRegistries.ITEM.byNameCodec().fieldOf("resultItem").forGetter(r -> r.resultItem),
 			Codec.INT.fieldOf("resultUnits").forGetter(r -> r.resultUnits)
 		).apply(instance, SacrificeUpgradeRecipe::new));
 
-		PacketCodec<RegistryByteBuf, SacrificeUpgradeRecipe> PACKET_CODEC = PacketCodec.tuple(
-			PacketCodecs.registryValue(RegistryKeys.ITEM), r -> r.baseItem,
-			Ingredient.PACKET_CODEC, r -> r.addition,
-			PacketCodecs.VAR_INT, r -> r.additionUnits,
-			PacketCodecs.registryValue(RegistryKeys.ITEM), r -> r.resultItem,
-			PacketCodecs.VAR_INT, r -> r.resultUnits,
+		StreamCodec<RegistryFriendlyByteBuf, SacrificeUpgradeRecipe> PACKET_CODEC = StreamCodec.composite(
+			ByteBufCodecs.registry(Registries.ITEM), r -> r.baseItem,
+			Ingredient.CONTENTS_STREAM_CODEC, r -> r.addition,
+			ByteBufCodecs.VAR_INT, r -> r.additionUnits,
+			ByteBufCodecs.registry(Registries.ITEM), r -> r.resultItem,
+			ByteBufCodecs.VAR_INT, r -> r.resultUnits,
 			SacrificeUpgradeRecipe::new
 		);
 
@@ -100,7 +100,7 @@ public class SacrificeUpgradeRecipe extends SmithingTransformRecipe implements S
 		}
 
 		@Override
-		public PacketCodec<RegistryByteBuf, SacrificeUpgradeRecipe> packetCodec() {
+		public StreamCodec<RegistryFriendlyByteBuf, SacrificeUpgradeRecipe> streamCodec() {
 			return PACKET_CODEC;
 		}
 	}

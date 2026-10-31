@@ -1,20 +1,20 @@
 package folk.sisby.tinkerers_smithing;
 
-import net.minecraft.item.Item;
-import net.minecraft.recipe.Ingredient;
-import net.minecraft.util.Identifier;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
 import java.util.Set;
 
 public final class TinkerersSmithingMaterial {
 	public final EQUIPMENT_TYPE type;
-	public final Set<Identifier> upgradesTo;
+	public final Set<ResourceLocation> upgradesTo;
 	public final List<Ingredient> repairMaterials;
 	public final Set<Item> items;
-	public Identifier sacrificesVia;
+	public ResourceLocation sacrificesVia;
 
-	public TinkerersSmithingMaterial(EQUIPMENT_TYPE type, Set<Identifier> upgradesTo, List<Ingredient> repairMaterials, Set<Item> items, Identifier sacrificesVia) {
+	public TinkerersSmithingMaterial(EQUIPMENT_TYPE type, Set<ResourceLocation> upgradesTo, List<Ingredient> repairMaterials, Set<Item> items, ResourceLocation sacrificesVia) {
 		this.type = type;
 		this.upgradesTo = upgradesTo;
 		this.repairMaterials = repairMaterials;

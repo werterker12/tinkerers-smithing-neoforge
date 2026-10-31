@@ -21,5 +21,7 @@
 	"tag.tinkerers_smithing.sacrifice.netherite_6_plus": "6+ Cost Netherite Equipment",
 	"tag.tinkerers_smithing.sacrifice.netherite_7_plus": "7+ Cost Netherite Equipment",
 	"tag.tinkerers_smithing.sacrifice.netherite_8_plus": "8+ Cost Netherite Equipment",
-	"tag.tinkerers_smithing.sacrifice.netherite_9_plus": "9+ Cost Netherite Equipment"
+	"tag.tinkerers_smithing.sacrifice.netherite_9_plus": "9+ Cost Netherite Equipment",
+	"jei.tinkerers_smithing.dework.desc": "Can be combined with tools or armor in an anvil to reduce or remove their prior work penalty (repair cost).",
+	"jei.tinkerers_smithing.repair.desc": "Tools and armor can be repaired shapelessly in any crafting grid without penalty."
 }

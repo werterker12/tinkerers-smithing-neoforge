@@ -1,125 +1,107 @@
-//file:noinspection GroovyAssignabilityCheck
-//file:noinspection GroovyAccessibility
 plugins {
-	id "maven-publish"
-	alias libs.plugins.loom
-	alias libs.plugins.githubRelease
-	alias libs.plugins.minotaur
-	alias libs.plugins.curse
+    id "java-library"
+    id "maven-publish"
+    alias libs.plugins.modDev
 }
 
-version = "$baseVersion+$branch"
-archivesBaseName = project.slug
+version = project.modVersion
+group = project.group
+base.archivesName = project.slug
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+neoForge {
+    version = project.neoForgeVersion
+
+    validateAccessTransformers = true
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.modId
+        }
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.modId
+        }
+    }
+
+    mods {
+        "${project.modId}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
 
 repositories {
-	maven { url "https://repo.sleeping.town/" }
-	maven { url "https://maven.terraformersmc.com/" }
+    mavenCentral()
+    maven {
+        name = "Sinytra"
+        url = "https://maven.sinytra.org"
+    }
+    maven {
+        name = "BlameJared (JEI)"
+        url = "https://maven.blamejared.com"
+    }
 }
 
 dependencies {
-	implementation libs.kaleidoConfig
-	include libs.kaleidoConfig
+    // Sinytra Forgified Fabric API for networking & payload support
+    implementation libs.ffapi
 
-	minecraft libs.mc
-	mappings variantOf(libs.yarn) { classifier "v2" }
-	modImplementation libs.fl
-
-	modImplementation libs.fapi
-
-	modCompileOnly libs.emi
-	modLocalRuntime libs.emi
+    // JEI API and runtime
+    compileOnly libs.jei.common.api
+    compileOnly libs.jei.neoforge.api
+    runtimeOnly libs.jei.neoforge
 }
 
 processResources {
-	final Map<String, String> meta = [
-		version       : version,
-		modId         : modId,
-		modName       : modName,
-		modDescription: modDescription,
-		homepage      : "https://modrinth.com/mod/${slug}",
-		issues        : "https://github.com/${user}/${slug}/issues",
-		sources       : "https://github.com/${user}/${slug}",
-		license       : license,
-		authors       : authors.split(", ").join("\",\n    \""),
-		members       : "${authors}",
-		mc            : compatibleVersions.split(", ")[0],
-		fl            : libs.versions.fl.get(),
-		fapi          : libs.versions.fapi.get(),
-		emi           : libs.versions.emi.get()
-	]
-	inputs.properties(meta)
-	filesMatching("*.mod.json") { expand(meta) }
-	filesMatching("META-INF/*mods.toml") { expand(meta) }
+    def meta = [
+        version        : version,
+        modId          : modId,
+        modName        : modName,
+        modDescription : modDescription,
+        authors        : authors,
+        credits        : credits,
+        license        : license,
+        homepage       : "https://github.com/${user}/${slug}",
+        issues         : "https://github.com/${user}/${slug}/issues",
+        sources        : "https://github.com/${user}/${slug}",
+        mc             : minecraftVersion,
+        neoForgeVersion: neoForgeVersion
+    ]
+    inputs.properties(meta)
+    filesMatching("META-INF/neoforge.mods.toml") {
+        expand(meta)
+    }
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.encoding = "UTF-8"
-	it.options.release = 17
-}
-
-java {
-	withSourcesJar()
-	sourceCompatibility = JavaVersion.VERSION_17
-	targetCompatibility = JavaVersion.VERSION_17
+    options.encoding = "UTF-8"
 }
 
 jar {
-	from("LICENSE") {
-		rename { "${it}_${archivesBaseName}" }
-	}
+    from("LICENSE") {
+        rename { "${it}_${project.slug}" }
+    }
+    manifest {
+        attributes([
+            "Specification-Title"     : project.modName,
+            "Specification-Vendor"    : project.authors,
+            "Specification-Version"   : "1",
+            "Implementation-Title"    : project.modName,
+            "Implementation-Version"  : project.version,
+            "Implementation-Vendor"   : project.authors,
+            "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
+        ])
+    }
 }
 
-loom {
-	accessWidenerPath = file("src/main/resources/${modId}.accesswidener")
+publishing {
+    publications {
+        register("mavenJava", MavenPublication) {
+            from components.java
+        }
+    }
 }
-
-githubRelease {
-	token = "$System.env.GITHUB_TOKEN"
-	owner = project.user
-	repo = slug
-	tagName = "v${baseVersion}+${tagBranch}"
-	targetCommitish = tagBranch
-	releaseAssets = remapJar
-	releaseName = "v${baseVersion}"
-	allowUploadToExisting = true
-	generateReleaseNotes = true
-	body = !file("CHANGELOG.md").exists() ? "" : rootProject.file("CHANGELOG.md").text
-}
-
-modrinth {
-	token = "$System.env.MODRINTH_TOKEN"
-	projectId = slug
-	versionNumber = project.version
-	uploadFile = remapJar
-	gameVersions = compatibleVersions.split(", ").toList()
-	loaders = compatibleLoaders.split(", ").toList()
-	changelog = !file("CHANGELOG.md").exists() ? "" : rootProject.file("CHANGELOG.md").text + "\n\nChangelog: https://github.com/${user}/${slug}/releases/tag/v${baseVersion}+${tagBranch}"
-	syncBodyFrom = rootProject.file("README.md").text
-	dependencies {
-		required.version libs.fapi.get().getName(), libs.versions.fapi.get()
-		optional.version libs.emi.get().getName().replace("-fabric", ""), libs.versions.emi.get() + "+fabric"
-	}
-}
-
-tasks.register("curseforge", net.darkhax.curseforgegradle.TaskPublishCurseForge) {
-	group = "publishing"
-	apiToken = "$System.env.CURSEFORGE_TOKEN"
-	disableVersionDetection()
-	def projectId = "1506047"
-	def mainFile = upload(projectId, remapJar)
-	compatibleLoaders.split(", ").toList().forEach { mainFile.addModLoader(it) }
-	compatibleVersions.split(", ").toList().forEach { mainFile.addGameVersion(it) }
-	mainFile.addEnvironment("client", "server")
-	mainFile.addRequirement(libs.fapi.get().getName())
-	mainFile.changelog = !file("CHANGELOG.md").exists() ? "" : rootProject.file("CHANGELOG.md").text + "\n\nChangelog: https://github.com/${user}/${slug}/releases/tag/v${baseVersion}+${tagBranch}"
-	mainFile.changelogType = "markdown"
-	mainFile.releaseType = "release"
-}
-
-tasks.register("fullRelease") {
-	group "publishing"
-	dependsOn "githubRelease"
-	dependsOn "modrinth"
-	dependsOn "curseforge"
-}
-

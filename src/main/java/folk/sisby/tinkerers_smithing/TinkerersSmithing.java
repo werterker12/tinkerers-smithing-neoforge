@@ -9,67 +9,95 @@ import folk.sisby.tinkerers_smithing.recipe.SacrificeUpgradeRecipe;
 import folk.sisby.tinkerers_smithing.recipe.ShapelessRepairRecipe;
 import folk.sisby.tinkerers_smithing.recipe.ShapelessUpgradeRecipe;
 import folk.sisby.tinkerers_smithing.recipe.SmithingUpgradeRecipe;
-import net.fabricmc.api.ModInitializer;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.component.ComponentMap;
-import net.minecraft.component.DataComponentTypes;
-import net.minecraft.enchantment.Enchantment;
-import net.minecraft.item.ElytraItem;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.recipe.Recipe;
-import net.minecraft.recipe.RecipeSerializer;
-import net.minecraft.registry.Registries;
-import net.minecraft.registry.Registry;
-import net.minecraft.registry.RegistryKeys;
-import net.minecraft.registry.tag.TagKey;
-import net.minecraft.resource.ResourceReloader;
-import net.minecraft.util.Identifier;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.ElytraItem;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.Recipe;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.enchantment.Enchantment;
+import net.minecraft.world.level.ItemLike;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModContainer;
+import net.neoforged.fml.common.Mod;
+import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
+import net.neoforged.neoforge.registries.DeferredRegister;
+import net.neoforged.neoforge.registries.NeoForgeRegistries;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Map;
 
-public class TinkerersSmithing implements ModInitializer {
-	public static final String ID = "tinkerers_smithing";
-	public static final Logger LOGGER = LoggerFactory.getLogger(ID);
+@Mod(TinkerersSmithing.ID)
+public class TinkerersSmithing {
+    public static final String ID = "tinkerers_smithing_byw";
+    public static final Logger LOGGER = LoggerFactory.getLogger(ID);
 
-	public static final TinkerersSmithingConfig CONFIG = TinkerersSmithingConfig.createToml(FabricLoader.getInstance().getConfigDir(), "", ID, TinkerersSmithingConfig.class);
+    public static final TagKey<Item> DEWORK_INGREDIENTS = TagKey.create(net.minecraft.core.registries.Registries.ITEM, ResourceLocation.fromNamespaceAndPath(ID, "dework_ingredients"));
+    public static final TagKey<Item> BROKEN_BLACKLIST = TagKey.create(net.minecraft.core.registries.Registries.ITEM, ResourceLocation.fromNamespaceAndPath(ID, "broken_blacklist"));
+    public static final TagKey<Enchantment> KEEPERS_IMMUNE = TagKey.create(net.minecraft.core.registries.Registries.ENCHANTMENT, ResourceLocation.fromNamespaceAndPath(ID, "keepers_immune"));
 
-	public static final TagKey<Item> DEWORK_INGREDIENTS = TagKey.of(RegistryKeys.ITEM, Identifier.of(ID, "dework_ingredients"));
-	public static final TagKey<Item> BROKEN_BLACKLIST = TagKey.of(RegistryKeys.ITEM, Identifier.of(ID, "broken_blacklist"));
-	public static final TagKey<Enchantment> KEEPERS_IMMUNE = TagKey.of(RegistryKeys.ENCHANTMENT, Identifier.of(ID, "keepers_immune"));
+    // Must load before recipes do - registered as server data reloaders
+    public static final List<net.minecraft.server.packs.resources.PreparableReloadListener> RECIPE_DEPENDENCY_RELOADERS = List.of(
+        SmithingToolMaterialLoader.INSTANCE,
+        SmithingArmorMaterialLoader.INSTANCE,
+        SmithingUnitCostManager.INSTANCE,
+        SmithingTypeLoader.INSTANCE
+    );
 
-	// Must load before recipes do, so we can't use the usual fabric route.
-	public static final List<ResourceReloader> RECIPE_DEPENDENCY_RELOADERS = List.of(SmithingToolMaterialLoader.INSTANCE, SmithingArmorMaterialLoader.INSTANCE, SmithingUnitCostManager.INSTANCE, SmithingTypeLoader.INSTANCE);
+    public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS =
+        DeferredRegister.create(net.minecraft.core.registries.Registries.RECIPE_SERIALIZER, ID);
 
-	public static final RecipeSerializer<ShapelessRepairRecipe> SHAPELESS_REPAIR_SERIALIZER = Registry.register(Registries.RECIPE_SERIALIZER, Identifier.of(ID, "repair"), new ShapelessRepairRecipe.Serializer());
-	public static final RecipeSerializer<SacrificeUpgradeRecipe> SACRIFICE_UPGRADE_SERIALIZER = Registry.register(Registries.RECIPE_SERIALIZER, Identifier.of(ID, "sacrifice"), new SacrificeUpgradeRecipe.Serializer());
-	public static final RecipeSerializer<SmithingUpgradeRecipe> SMITHING_UPGRADE_SERIALIZER = Registry.register(Registries.RECIPE_SERIALIZER, Identifier.of(ID, "smithing"), new SmithingUpgradeRecipe.Serializer());
-	public static final RecipeSerializer<ShapelessUpgradeRecipe> SHAPELESS_UPGRADE_SERIALIZER = Registry.register(Registries.RECIPE_SERIALIZER, Identifier.of(ID, "shapeless"), new ShapelessUpgradeRecipe.Serializer());
+    public static final net.neoforged.neoforge.registries.DeferredHolder<RecipeSerializer<?>, RecipeSerializer<ShapelessRepairRecipe>> SHAPELESS_REPAIR_SERIALIZER =
+        RECIPE_SERIALIZERS.register("repair", ShapelessRepairRecipe.Serializer::new);
+    public static final net.neoforged.neoforge.registries.DeferredHolder<RecipeSerializer<?>, RecipeSerializer<SacrificeUpgradeRecipe>> SACRIFICE_UPGRADE_SERIALIZER =
+        RECIPE_SERIALIZERS.register("sacrifice", SacrificeUpgradeRecipe.Serializer::new);
+    public static final net.neoforged.neoforge.registries.DeferredHolder<RecipeSerializer<?>, RecipeSerializer<SmithingUpgradeRecipe>> SMITHING_UPGRADE_SERIALIZER =
+        RECIPE_SERIALIZERS.register("smithing", SmithingUpgradeRecipe.Serializer::new);
+    public static final net.neoforged.neoforge.registries.DeferredHolder<RecipeSerializer<?>, RecipeSerializer<ShapelessUpgradeRecipe>> SHAPELESS_UPGRADE_SERIALIZER =
+        RECIPE_SERIALIZERS.register("shapeless", ShapelessUpgradeRecipe.Serializer::new);
 
-	public static void generateSmithingData(Map<Identifier, Recipe<?>> recipes) {
-		TinkerersSmithing.LOGGER.info("[Tinkerer's Smithing] Generating Smithing Data!");
-		TinkerersSmithingLoader.INSTANCE.generateItemSmithingData(recipes);
-	}
+    public TinkerersSmithing(IEventBus modBus, ModContainer modContainer) {
+        modContainer.registerConfig(TinkerersSmithingConfig.getType(), TinkerersSmithingConfig.SPEC);
 
-	public static boolean isBroken(ItemStack stack) {
-		return !stack.isIn(BROKEN_BLACKLIST) && stack.getDamage() > 0 && stack.getDamage() >= stack.getMaxDamage() - (stack.getItem() instanceof ElytraItem ? 1 : 0);
-	}
+        // Register recipe serializers
+        RECIPE_SERIALIZERS.register(modBus);
 
-	public static boolean isBroken(ComponentMap map) {
-		return map.getOrDefault(DataComponentTypes.DAMAGE, 0) > 0 && map.getOrDefault(DataComponentTypes.DAMAGE, 0) >= map.getOrDefault(DataComponentTypes.MAX_DAMAGE, 0);
-	}
+        // Register networking payload
+        modBus.addListener(this::registerPayloads);
 
-	public static boolean isKeeper(ItemStack stack) {
-		return !stack.isIn(BROKEN_BLACKLIST) && (stack.contains(DataComponentTypes.CUSTOM_NAME) || stack.hasEnchantments() || stack.getItem() instanceof ElytraItem);
-	}
+        LOGGER.info("[Tinkerer's Smithing] Initialized.");
+    }
 
-	@Override
-	public void onInitialize() {
-		PayloadTypeRegistry.playS2C().register(S2CPing.ID, S2CPing.CODEC);
-		LOGGER.info("[Tinkerer's Smithing] Initialized.");
-	}
+    private void registerPayloads(RegisterPayloadHandlersEvent event) {
+        event.registrar(ID).playToClient(
+            S2CPing.TYPE,
+            S2CPing.STREAM_CODEC,
+            (packet, ctx) -> {}
+        );
+    }
+
+    public static void generateSmithingData(Map<ResourceLocation, Recipe<?>> recipes) {
+        TinkerersSmithing.LOGGER.info("[Tinkerer's Smithing] Generating Smithing Data!");
+        TinkerersSmithingLoader.INSTANCE.generateItemSmithingData(recipes);
+    }
+
+    public static boolean isBroken(ItemStack stack) {
+        return !stack.is(BROKEN_BLACKLIST)
+            && stack.getDamageValue() > 0
+            && stack.getDamageValue() >= stack.getMaxDamage() - (stack.getItem() instanceof ElytraItem ? 1 : 0);
+    }
+
+    public static boolean isBroken(net.minecraft.core.component.DataComponentMap map) {
+        return map.getOrDefault(DataComponents.DAMAGE, 0) > 0
+            && map.getOrDefault(DataComponents.DAMAGE, 0) >= map.getOrDefault(DataComponents.MAX_DAMAGE, 0);
+    }
+
+    public static boolean isKeeper(ItemStack stack) {
+        return !stack.is(BROKEN_BLACKLIST)
+            && (stack.has(DataComponents.CUSTOM_NAME) || stack.isEnchanted() || stack.getItem() instanceof ElytraItem);
+    }
 }
